@@ -1,4 +1,7 @@
+const bcrypt = require('bcrypt');
 const Users = require('../models/users');
+
+const saltRounds = 10;
 
 // new user
 exports.signUp = async (req, res, next) => {
@@ -13,7 +16,8 @@ exports.signUp = async (req, res, next) => {
   }
 
   try {
-    const result = await Users.create({ name, email, password });
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const result = await Users.create({ name, email, password: hashedPassword });
     res.status(201).send(result);
   } catch (err) {
     if (err.name === 'SequelizeUniqueConstraintError') {
@@ -44,7 +48,8 @@ exports.logIn = async (req, res, next) => {
     }
 
     // incorrect password
-    if (password!=user.password) {
+    const matchPassword = await bcrypt.compare(password, user.password);
+    if (!matchPassword) {
       return res.status(401).json({ error: 'User not authorized.' });
     }
 
