@@ -16,7 +16,7 @@ app.use("/user", authRoutes);
 
 sequelize.sync().then(() => {
   app.listen(3000);
-  console.log(`app listening on port --> http://localhost:${port}`)
+  console.log(`\u001b[1;32m app listening on port --> http://localhost:${port} \u001b[0m`)
 
 }).catch(err => {
   console.log(err);
