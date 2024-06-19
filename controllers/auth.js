@@ -1,7 +1,13 @@
 const bcrypt = require('bcrypt');
 const Users = require('../models/users');
+var jwt = require('jsonwebtoken');
 
 const saltRounds = 10;
+const secretKey = '65zwEsXsUd1FLQgwAVGz3UsSB0Mn7ewG';
+
+function generateToken(uid){
+  return jwt.sign({ uid : uid }, secretKey);
+}
 
 // new user
 exports.signUp = async (req, res, next) => {
@@ -54,7 +60,7 @@ exports.logIn = async (req, res, next) => {
     }
 
     // all good
-    res.status(200).json({ message: 'Login successful.' });
+    res.status(200).json({ message: 'Login successful.', token: generateToken(user.id), useremail:user.email });
 
   } catch (err) {
     console.error(err);
