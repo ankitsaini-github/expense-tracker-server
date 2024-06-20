@@ -22,6 +22,7 @@ const Users = sequelize.define('users', {
     type: Sequelize.STRING,
     allowNull: false
   },
+  isProUser: Sequelize.BOOLEAN,
 });
 
 module.exports = Users;

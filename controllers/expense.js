@@ -36,14 +36,17 @@ exports.addExpense = async (req, res) => {
 //delete expense
 exports.deleteExpense = async (req, res) => {
   const { id } = req.params;
-
+  const uid = req.user.id;
   try {
     const expense = await Expenses.findByPk(id);
 
     if (!expense) {
       return res.status(404).json({ error: 'Expense not found.' });
     }
-
+    if(expense.uid != uid){
+      return res.status(403).json({ error: 'Unauthorized action.' });
+    }
+    
     await expense.destroy();
     res.status(200).json({ message: 'Expense deleted successfully.' });
   } catch (err) {

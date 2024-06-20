@@ -2,8 +2,10 @@ const bcrypt = require('bcrypt');
 const Users = require('../models/users');
 var jwt = require('jsonwebtoken');
 
+require('dotenv').config();
+
 const saltRounds = 10;
-const secretKey = '65zwEsXsUd1FLQgwAVGz3UsSB0Mn7ewG';
+const secretKey = process.env.JWT_SECRET_KEY;
 
 function generateToken(uid){
   return jwt.sign({ uid : uid }, secretKey);

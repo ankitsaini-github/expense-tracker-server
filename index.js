@@ -9,12 +9,14 @@ const port = 3000;
 const sequelize = require('./util/database');
 const authRoutes = require('./routes/auth');
 const expenseRoutes = require('./routes/expense');
+const checkoutRoutes = require('./routes/checkout');
 
 app.use(cors());
 app.use(bodyParser.json({ extended: false }));
 
 app.use("/user", authRoutes);
 app.use("/expenses", expenseRoutes);
+app.use("/checkout", checkoutRoutes);
 
 sequelize.sync().then(() => {
   app.listen(3000);
