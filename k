@@ -1,2 +1,0 @@
-kid rzp_test_Q0C97BWoDYKM53
-ksec Df1U4u3cfNmw971wb4RKSVPx

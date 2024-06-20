@@ -6,8 +6,8 @@ const secretKey = '65zwEsXsUd1FLQgwAVGz3UsSB0Mn7ewG';
 exports.authenticateUser = async(req,res,next)=>{
   try {
     const token = req.header('Authorization')
-    const {uid} = jwt.verify(token, secretKey)
-    const user = await Users.findByPk(uid)
+    const {userId} = jwt.verify(token, secretKey)
+    const user = await Users.findByPk(userId)
     if(!user){
       throw new Error('User not found.');
     }

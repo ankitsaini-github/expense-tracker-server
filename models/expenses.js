@@ -9,10 +9,6 @@ const Expenses = sequelize.define('expenses', {
     allowNull: false,
     primaryKey: true
   },
-  uid: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-  },
   amount: {
     type: Sequelize.FLOAT,
     allowNull: false

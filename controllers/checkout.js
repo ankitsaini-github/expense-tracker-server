@@ -4,6 +4,7 @@ const Users = require('../models/users');
 require('dotenv').config();
 
 exports.buyPro = async(req, res, next)=>{
+
   try {
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
@@ -14,8 +15,9 @@ exports.buyPro = async(req, res, next)=>{
       amount: 5100,
       currency: "INR",
     };
-
+    
     const order = await razorpay.orders.create(options);
+    
     res.json({order, key_id: razorpay.key_id, currency:options.currency});
 
   } catch (error) {

@@ -8,7 +8,7 @@ const saltRounds = 10;
 const secretKey = process.env.JWT_SECRET_KEY;
 
 function generateToken(uid){
-  return jwt.sign({ uid : uid }, secretKey);
+  return jwt.sign({ userId : uid }, secretKey);
 }
 
 // new user
@@ -62,7 +62,7 @@ exports.logIn = async (req, res, next) => {
     }
 
     // all good
-    res.status(200).json({ message: 'Login successful.', token: generateToken(user.id), useremail:user.email });
+    res.status(200).json({ message: 'Login successful.', token: generateToken(user.id), useremail:user.email, isPro: user.isProUser });
 
   } catch (err) {
     console.error(err);
