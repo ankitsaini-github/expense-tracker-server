@@ -1,4 +1,5 @@
 const Expenses = require('../models/expenses');
+const Users = require('../models/users');
 
 //fetch all expense
 exports.fetchAll = async (req, res) => {
@@ -26,6 +27,11 @@ exports.addExpense = async (req, res) => {
 
   try {
     const result = await Expenses.create({ amount, description, category, userId });
+
+    const user = await Users.findByPk(userId)
+    user.totalExpense += parseFloat(amount)
+    user.save()
+
     res.status(201).send(result);
   } catch (err) {
       console.error(err);
@@ -46,6 +52,10 @@ exports.deleteExpense = async (req, res) => {
     if(expense.userId != userId){
       return res.status(403).json({ error: 'Unauthorized action.' });
     }
+    
+    const user = await Users.findByPk(userId)
+    user.totalExpense -= parseFloat(expense.amount)
+    user.save()
     
     await expense.destroy();
     res.status(200).json({ message: 'Expense deleted successfully.' });
