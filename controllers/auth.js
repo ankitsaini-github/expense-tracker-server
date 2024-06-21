@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const Users = require("../models/users");
 const ForgotPasswordRequests = require("../models/forgotPasswordRequests");
+const sequelize = require("../util/database");
 
 var jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
@@ -106,9 +107,6 @@ exports.forgotPassword = async (req, res) => {
       userId: user.id,
     });
 
-    // console.log('reset---- ',resetReq)
-    // return res.status(200).json({info:{},message:'Reset Link Sent.'})
-
     //#region using nodemailer - test account
     //   const testAcc = await nodemailer.createTestAccount();
 
@@ -213,7 +211,7 @@ exports.resetPasswordPage = async (req, res) => {
     return res.send(`
       <html>
           <body>
-              <form action="http://localhost:3000/user/reset-password/${id}" method="POST enctype="application/x-www-form-urlencoded"">
+              <form action="http://localhost:3000/user/reset-password/${id}" method="POST" enctype="application/x-www-form-urlencoded">
                   <label for="password">New Password:</label>
                   <input type="password" name="password" id="password" required>
                   <button type="submit">Reset Password</button>
@@ -234,26 +232,24 @@ exports.resetPassword = async(req,res) => {
   const newPassword = req.body.password;
 
   try {
-    console.log('start reset')
-    const result = await sequelize.transaction(async (t) => {
+
+      const result = await sequelize.transaction(async (t) => {
       const resetReq = await ForgotPasswordRequests.findByPk(id, { transaction: t });
-      console.log('got req: ',resetReq);
 
       const user = await Users.findByPk(resetReq.userId, { transaction: t });
-      console.log('got user: ',user);
 
       user.password = await bcrypt.hash(newPassword, saltRounds);
-      console.log('changed password')
+
       await user.save({transaction: t});
       await resetReq.destroy({transaction: t});
-      console.log('destroy req')
+
       return user;
     });
 
     console.log('redirecting')
     res.redirect('http://localhost:5173/login');
 
-    console.log('user password reset: ',result);
+    console.log('user password reset for : ',result.name);
   } catch (error) {
     console.log('error---- ',error);
     res.redirect('http://localhost:5173/login');
