@@ -1,9 +1,12 @@
 const bcrypt = require("bcrypt");
 const Users = require("../models/users");
+const ForgotPasswordRequests = require("../models/forgotPasswordRequests");
+
 var jwt = require("jsonwebtoken");
+const { v4: uuidv4 } = require("uuid");
 
 const nodemailer = require("nodemailer");
-const Mailgen = require('mailgen')
+const Mailgen = require("mailgen");
 
 require("dotenv").config();
 
@@ -91,12 +94,20 @@ exports.forgotPassword = async (req, res) => {
   }
 
   try {
-
     //check user exist
-    const user = await Users.findOne({ where: { email:userEmail } });
+    const user = await Users.findOne({ where: { email: userEmail } });
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
+
+    const resetReq = await ForgotPasswordRequests.create({
+      id: uuidv4(),
+      isActive: false,
+      userId: user.id,
+    });
+
+    // console.log('reset---- ',resetReq)
+    // return res.status(200).json({info:{},message:'Reset Link Sent.'})
 
     //#region using nodemailer - test account
     //   const testAcc = await nodemailer.createTestAccount();
@@ -105,9 +116,9 @@ exports.forgotPassword = async (req, res) => {
     //   host: "smtp.ethereal.email",
     //   port: 587,
     //   secure: false,
-    //   auth: { 
+    //   auth: {
     //     user: 'felipe.cartwright62@ethereal.email',
-    //     pass: 'Tnf3rWGCVC5mzfS4RR' 
+    //     pass: 'Tnf3rWGCVC5mzfS4RR'
     //   },
     // });
 
@@ -125,42 +136,43 @@ exports.forgotPassword = async (req, res) => {
     const transporter = await nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
-      auth: { 
+      auth: {
         user: process.env.GMAIL_ID,
         pass: process.env.GMAIL_APP_PASS,
       },
     });
-    
+
     let MailGenerator = new Mailgen({
-      theme: 'default', //cerberus,salted,neopolitan
+      theme: "default", //cerberus,salted,neopolitan
       product: {
-        name: 'DhanDiary Support',
-        link: '#',
-        copyright: 'Copyright © 2024 DhanDiary. All rights reserved.',
-        logo: 'https://i.imgur.com/XAQWwQd.png',
-      }
+        name: "DhanDiary Support",
+        link: "#",
+        copyright: "Copyright © 2024 DhanDiary. All rights reserved.",
+        logo: "https://i.imgur.com/XAQWwQd.png",
+      },
     });
 
-    const otp=1234; //test
+    const resetLink = `http://localhost:3000/user/reset-password/${resetReq.id}`; //dynamic reset link
 
     const response = {
       body: {
         name: user.name,
-        intro: 'This is an auto generated One Time Password, do not share it with others.',
+        intro: "This is an auto generated Link, do not share it with others.",
         action: {
-          instructions: `Your OTP is: ${otp}`,
+          instructions: `Click below button to RESET your Password`,
           button: {
-            color: '#84cc16',
-            text: '1234',
-            link: '#'
-        }
+            color: "#84cc16",
+            text: "Reset",
+            link: resetLink,
+          },
+        },
+        outro:
+          "If you did not request a password reset, no further action is required on your part.",
+        signature: "Best regards",
       },
-        outro: 'If you did not request a password reset, no further action is required on your part.',
-        signature: 'Best regards',
-      }
-    }
+    };
 
-    const mail = MailGenerator.generate(response)
+    const mail = MailGenerator.generate(response);
 
     const info = await transporter.sendMail({
       from: process.env.GMAIL_ID,
@@ -169,11 +181,81 @@ exports.forgotPassword = async (req, res) => {
       html: mail,
     });
 
-    console.log("Message sent-----------");//test
-    res.json({info,message:'Reset Link Sent.'})
-
+    console.log("Message sent-----------"); //test
+    res.json({ info, message: "Reset Link Sent." });
   } catch (error) {
-    console.log('email error ===== ',error)
-    res.status(500).json({error:'Failed to send reset link. Try again.'})
+    console.log("email error ===== ", error);
+    res.status(500).json({ error: "Failed to send reset link. Try again." });
+  }
+};
+
+//reset password page
+exports.resetPasswordPage = async (req, res) => {
+  const { id } = req.params;
+
+  //check forgotpassword req
+  try {
+    const resetReq = await ForgotPasswordRequests.findOne({
+      where: { id, isActive: true },
+    });
+    //no req
+    if(!resetReq){
+      return res.status(404).send(`
+        <html>
+              <body>
+                  <h1>Link Expired</h1>
+              </body>
+          </html> 
+        `);
+    }
+  
+    //req active
+    return res.send(`
+      <html>
+          <body>
+              <form action="http://localhost:3000/user/reset-password/${id}" method="POST enctype="application/x-www-form-urlencoded"">
+                  <label for="password">New Password:</label>
+                  <input type="password" name="password" id="password" required>
+                  <button type="submit">Reset Password</button>
+              </form>
+          </body>
+      </html>
+  `);
+  
+  } catch (error) {
+    console.log('error---- ',error)
+    return res.status(500).json(error)
+  }
+};
+
+//reset password
+exports.resetPassword = async(req,res) => {
+  const {id} = req.params;
+  const newPassword = req.body.password;
+
+  try {
+    console.log('start reset')
+    const result = await sequelize.transaction(async (t) => {
+      const resetReq = await ForgotPasswordRequests.findByPk(id, { transaction: t });
+      console.log('got req: ',resetReq);
+
+      const user = await Users.findByPk(resetReq.userId, { transaction: t });
+      console.log('got user: ',user);
+
+      user.password = await bcrypt.hash(newPassword, saltRounds);
+      console.log('changed password')
+      await user.save({transaction: t});
+      await resetReq.destroy({transaction: t});
+      console.log('destroy req')
+      return user;
+    });
+
+    console.log('redirecting')
+    res.redirect('http://localhost:5173/login');
+
+    console.log('user password reset: ',result);
+  } catch (error) {
+    console.log('error---- ',error);
+    res.redirect('http://localhost:5173/login');
   }
 };
