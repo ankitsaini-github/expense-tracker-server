@@ -8,12 +8,12 @@ exports.fetchAll = async (req, res) => {
   try {
     const expenses = await Expenses.findAll({ where: { userId: uid } });
     if (!expenses) {
-      return res.status(404).json({ error: "No expenses found." });
+      return res?res.status(404).json({ error: "No expenses found." }):[];
     }
-    res.status(200).json(expenses);
+    return res?res.status(200).json(expenses):expenses;
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch expenses." });
+    return res?res.status(500).json({ error: "Failed to fetch expenses." }):[];
   }
 };
 
@@ -28,8 +28,9 @@ exports.addExpense = async (req, res) => {
 
   try {
     const result = await sequelize.transaction(async (t) => {
+      const date = new Date().toISOString().split('T')[0];
       const expense = await Expenses.create(
-        { amount, description, category, userId },
+        { amount, description, category, date, userId },
         { transaction: t }
       );
 
