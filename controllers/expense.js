@@ -5,12 +5,31 @@ const sequelize = require("../util/database");
 //fetch all expense
 exports.fetchAll = async (req, res) => {
   const uid = req.user.id;
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (page - 1) * limit;
+
   try {
-    const expenses = await Expenses.findAll({ where: { userId: uid } });
-    if (!expenses) {
-      return res?res.status(404).json({ error: "No expenses found." }):[];
-    }
-    return res?res.status(200).json(expenses):expenses;
+
+    // const expenses = await Expenses.findAll({ where: { userId: uid } });
+    // if (!expenses) {
+    //   return res?res.status(404).json({ error: "No expenses found." }):[];
+    // }
+    // return res?res.status(200).json(expenses):expenses;
+
+    const { count, rows: expenses } = await Expenses.findAndCountAll({
+      where:{userId:uid},
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
+    console.log('fetched ',count , expenses.length);
+    const totalPages = Math.ceil(count / limit);
+
+    return res.status(200).json({
+      expenses,
+      totalPages
+    });
+
   } catch (err) {
     console.error(err);
     return res?res.status(500).json({ error: "Failed to fetch expenses." }):[];

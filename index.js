@@ -14,6 +14,7 @@ const premiumRoutes = require('./routes/premium');
 
 const Expenses = require('./models/expenses');
 const Users = require('./models/users');
+const DownloadFiles = require('./models/downloadFiles');
 const ForgotPasswordRequests = require('./models/forgotPasswordRequests');
 
 app.use(cors());
@@ -27,6 +28,9 @@ app.use("/premium", premiumRoutes);
 
 Users.hasMany(Expenses);
 Expenses.belongsTo(Users);
+
+Users.hasMany(DownloadFiles);
+DownloadFiles.belongsTo(Users);
 
 Users.hasMany(ForgotPasswordRequests);
 ForgotPasswordRequests.belongsTo(Users);

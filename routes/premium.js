@@ -8,5 +8,6 @@ const router = express.Router();
 router.get('/leaderboard', premiumController.leaderboard);
 router.get('/reports', authenticateUser, premiumController.getReport);
 router.get('/download', authenticateUser, premiumController.downloadExpense);
+router.get('/all-files', authenticateUser, premiumController.downloadAllFiles);
 
 module.exports = router;
