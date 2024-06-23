@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const Users = require("../models/users");
 const ForgotPasswordRequests = require("../models/forgotPasswordRequests");
 const sequelize = require("../util/database");
+const {getpasswordpage} = require("../util/forgotpasswordpage");
 
 var jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
@@ -103,7 +104,7 @@ exports.forgotPassword = async (req, res) => {
 
     const resetReq = await ForgotPasswordRequests.create({
       id: uuidv4(),
-      isActive: false,
+      isActive: true,
       userId: user.id,
     });
 
@@ -208,17 +209,8 @@ exports.resetPasswordPage = async (req, res) => {
     }
   
     //req active
-    return res.send(`
-      <html>
-          <body>
-              <form action="http://localhost:3000/user/reset-password/${id}" method="POST" enctype="application/x-www-form-urlencoded">
-                  <label for="password">New Password:</label>
-                  <input type="password" name="password" id="password" required>
-                  <button type="submit">Reset Password</button>
-              </form>
-          </body>
-      </html>
-  `);
+    const result = getpasswordpage(id)
+    return res.send(result);
   
   } catch (error) {
     console.log('error---- ',error)
