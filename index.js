@@ -1,23 +1,34 @@
-const express = require('express')
+const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
+const fs = require("fs");
 
 const app = express();
 const port = 3000;
 
-const sequelize = require('./util/database');
-const authRoutes = require('./routes/auth');
-const expenseRoutes = require('./routes/expense');
-const checkoutRoutes = require('./routes/checkout');
-const premiumRoutes = require('./routes/premium');
+const sequelize = require("./util/database");
+const authRoutes = require("./routes/auth");
+const expenseRoutes = require("./routes/expense");
+const checkoutRoutes = require("./routes/checkout");
+const premiumRoutes = require("./routes/premium");
 
-const Expenses = require('./models/expenses');
-const Users = require('./models/users');
-const DownloadFiles = require('./models/downloadFiles');
-const ForgotPasswordRequests = require('./models/forgotPasswordRequests');
+const Expenses = require("./models/expenses");
+const Users = require("./models/users");
+const DownloadFiles = require("./models/downloadFiles");
+const ForgotPasswordRequests = require("./models/forgotPasswordRequests");
+
+const accessLogStream = fs.createWriteStream(
+  path.join(__dirname, "access.log"),
+  { flags: "a" }
+);
 
 app.use(cors());
+app.use(helmet());
+app.use(morgan("combined",{stream: accessLogStream}));
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json({ extended: false }));
 
@@ -35,10 +46,14 @@ DownloadFiles.belongsTo(Users);
 Users.hasMany(ForgotPasswordRequests);
 ForgotPasswordRequests.belongsTo(Users);
 
-sequelize.sync().then(() => {
-  app.listen(3000);
-  console.log(`\u001b[1;32m app listening on port --> http://localhost:${port} \u001b[0m`)
-
-}).catch(err => {
-  console.log(err);
-})
+sequelize
+  .sync()
+  .then(() => {
+    app.listen(3000);
+    console.log(
+      `\u001b[1;32m app listening on port --> http://localhost:${port} \u001b[0m`
+    );
+  })
+  .catch((err) => {
+    console.log(err);
+  });

@@ -180,7 +180,7 @@ exports.forgotPassword = async (req, res) => {
       html: mail,
     });
 
-    console.log("Message sent-----------"); //test
+    // console.log("Message sent-----------"); //test
     res.json({ info, message: "Reset Link Sent." });
   } catch (error) {
     console.log("email error ===== ", error);
@@ -238,7 +238,7 @@ exports.resetPassword = async(req,res) => {
       return user;
     });
 
-    console.log('redirecting')
+    // console.log('redirecting')
     res.redirect('http://localhost:5173/login');
 
     console.log('user password reset for : ',result.name);

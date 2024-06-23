@@ -44,7 +44,7 @@ const uploadToS3 = (data, filename)=>{
 exports.downloadExpense = async(req,res)=>{
 
   try {
-    console.log('fetching--');
+    // console.log('fetching--');
     const date = new Date().toISOString().replace(/[:.]/g,'-');
     const expenses = await expenseController.fetchAll(req)
     

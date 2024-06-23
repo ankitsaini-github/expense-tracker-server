@@ -17,7 +17,7 @@ exports.fetchAll = async (req, res) => {
         limit: parseInt(limit)
       });
   
-      console.log('fetched ',count , expenses.length);
+      // console.log('fetched ',count , expenses.length);
       const totalPages = Math.ceil(count / limit);
   
       return res.status(200).json({
