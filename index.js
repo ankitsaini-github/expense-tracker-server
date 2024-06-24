@@ -50,7 +50,7 @@ ForgotPasswordRequests.belongsTo(Users);
 sequelize
   .sync()
   .then(() => {
-    app.listen(3000);
+    app.listen(port);
     console.log(
       `\u001b[1;32m app listening on port --> http://localhost:${port} \u001b[0m`
     );
