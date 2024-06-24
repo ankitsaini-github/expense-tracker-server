@@ -1,7 +1,7 @@
 const Users = require('../models/users');
 const jwt = require('jsonwebtoken');
 
-const secretKey = '65zwEsXsUd1FLQgwAVGz3UsSB0Mn7ewG';
+const secretKey = process.env.JWT_SECRET_KEY;
 
 exports.authenticateUser = async(req,res,next)=>{
   try {

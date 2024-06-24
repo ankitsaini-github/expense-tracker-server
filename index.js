@@ -5,9 +5,10 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const fs = require("fs");
+require("dotenv").config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const sequelize = require("./util/database");
 const authRoutes = require("./routes/auth");

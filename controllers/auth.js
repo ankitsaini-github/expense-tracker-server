@@ -10,7 +10,7 @@ const { v4: uuidv4 } = require("uuid");
 const nodemailer = require("nodemailer");
 const Mailgen = require("mailgen");
 
-require("dotenv").config();
+// require("dotenv").config();
 
 const saltRounds = 10;
 const secretKey = process.env.JWT_SECRET_KEY;

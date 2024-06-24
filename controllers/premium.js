@@ -7,7 +7,7 @@ const moment = require('moment');
 const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require("uuid");
 
-require("dotenv").config();
+// require("dotenv").config();
 
 const expenseController = require('./expense');
 

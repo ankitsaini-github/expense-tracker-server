@@ -1,7 +1,7 @@
 const Razorpay = require("razorpay");
 const Users = require('../models/users');
 
-require('dotenv').config();
+// require('dotenv').config();
 
 exports.buyPro = async(req, res, next)=>{
 
