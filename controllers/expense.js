@@ -1,72 +1,83 @@
-const Expenses = require("../models/expenses");
-const Users = require("../models/users");
-const sequelize = require("../util/database");
+const mongoose = require('mongoose')
+const Expense = require("../models/expenses");
+const User = require("../models/users");
+
 
 //fetch all expense
 exports.fetchAll = async (req, res) => {
-  const uid = req.user.id;
+  const uid = req.user._id;
   const { page = 1, limit = 10 } = req.query;
-  const offset = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
   try {
+    if (req.query.page) {
+      // with pagination
+      const [expenses, count] = await Promise.all([
+        Expense.find({ userId: uid })
+          .skip(parseInt(skip))
+          .limit(parseInt(limit)),
+        Expense.countDocuments({ userId: uid })
+      ]);
 
-    if(req.query.page){
-      const { count, rows: expenses } = await Expenses.findAndCountAll({
-        where:{userId:uid},
-        offset: parseInt(offset),
-        limit: parseInt(limit)
-      });
-  
-      // console.log('fetched ',count , expenses.length);
       const totalPages = Math.ceil(count / limit);
-  
+
+      // console.log('expenses = ',expenses)
       return res.status(200).json({
         expenses,
         totalPages
       });
-      
-    }else{
-      // console.log('no query ---- ')
-      const expenses = await Expenses.findAll({ where: { userId: uid } });
-      if (!expenses) {
-        return res?res.status(404).json({ error: "No expenses found." }):[];
-      }
-      // console.log('got expense = ',expenses);
-      return res?res.status(200).json(expenses):expenses;
-    }
 
+    } else {
+      // without pagination
+      const expenses = await Expense.find({ userId: uid });
+
+      if (!expenses.length) {
+        return res.status(404).json({ error: "No expenses found." });
+      }
+
+      return res.status(200).json(expenses);
+    }
   } catch (err) {
     console.error(err);
-    return res?res.status(500).json({ error: "Failed to fetch expenses." }):[];
+    return res.status(500).json({ error: "Failed to fetch expenses." });
   }
 };
 
 // new expense
 exports.addExpense = async (req, res) => {
   const { amount, description, category } = req.body;
-  const userId = req.user.id;
+  const userId = req.user._id;
 
   if (!amount || !description || !category) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
   try {
-    const result = await sequelize.transaction(async (t) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
       const date = new Date().toISOString().split('T')[0];
-      const expense = await Expenses.create(
-        { amount, description, category, date, userId },
-        { transaction: t }
-      );
+      
+      // Create a new expense
+      const expense = new Expense({ amount, description, category, date, userId });
+      await expense.save({ session });
 
-      const user = await Users.findByPk(userId, { transaction: t });
-
+      // Find user and update total expense
+      const user = await User.findById(userId).session(session);
       user.totalExpense += parseFloat(amount);
-      await user.save({ transaction: t });
+      await user.save({ session });
 
-      return expense;
-    });
+      await session.commitTransaction();
+      session.endSession();
 
-    res.status(201).send(result);
+      res.status(201).send(expense);
+    } catch (err) {
+
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to add expense." });
@@ -76,35 +87,45 @@ exports.addExpense = async (req, res) => {
 //delete expense
 exports.deleteExpense = async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
+  const userId = req.user._id;
+
   try {
-    const result = await sequelize.transaction(async (t) => {
-      const expense = await Expenses.findByPk(id, { transaction: t });
+    const session = await Expense.startSession();
+    session.startTransaction();
+
+    try {
+      const expense = await Expense.findById(id).session(session); //find
 
       if (!expense) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(404).json({ error: "Expense not found." });
       }
 
-      if (expense.userId != userId) {
+      if (expense.userId.toString() !== userId.toString()) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(403).json({ error: "Unauthorized action." });
       }
 
-      await expense.destroy({ transaction: t });
+      await expense.deleteOne({ session }); //delete
 
-      const user = await Users.findByPk(userId, { transaction: t });
-
+      const user = await User.findById(userId).session(session);
       user.totalExpense -= parseFloat(expense.amount);
-      await user.save({ transaction: t });
+      await user.save({ session }); //save
 
-      return expense;
-    });
+      await session.commitTransaction(); //commit
+      session.endSession();
 
-    res
-      .status(200)
-      .json({
+      res.status(200).json({
         message: "Expense deleted successfully.",
-        deletedExpense: result,
+        deletedExpense: expense,
       });
+    } catch (err) {
+      await session.abortTransaction(); //rollback
+      session.endSession();
+      throw err;
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete expense." });

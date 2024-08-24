@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const Users = require("../models/users");
+const User = require("../models/users");
 const ForgotPasswordRequests = require("../models/forgotPasswordRequests");
 const sequelize = require("../util/database");
 const {getpasswordpage} = require("../util/forgotpasswordpage");
@@ -34,22 +34,25 @@ exports.signUp = async (req, res, next) => {
   }
 
   try {
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(409).json({ error: "User already exists." });
+    }
+
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const result = await Users.create({
+    const newUser = new User({
       name,
       email,
       password: hashedPassword,
     });
+
+    const result = await newUser.save();
     res.status(201).send(result);
+
   } catch (err) {
-    if (err.name === "SequelizeUniqueConstraintError") {
-      res.status(409).json({ error: "User already exists." });
-    } else if (err.name === "SequelizeValidationError") {
-      res.status(400).json({ error: "Validation error." });
-    } else {
-      console.error(err);
-      res.status(500).json({ error: "Failed to add user." });
-    }
+    console.error(err);
+    res.status(500).json({ error: "Failed to add user." });
   }
 };
 
@@ -62,23 +65,23 @@ exports.logIn = async (req, res, next) => {
   }
 
   try {
-    const user = await Users.findOne({ where: { email } });
+    const user = await User.findOne({ email });
 
-    // user not found
+    // User not found
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    // incorrect password
+    // Incorrect password
     const matchPassword = await bcrypt.compare(password, user.password);
     if (!matchPassword) {
       return res.status(401).json({ error: "User not authorized." });
     }
 
-    // all good
+    // All good
     res.status(200).json({
       message: "Login successful.",
-      token: generateToken(user.id),
+      token: generateToken(user._id),
       useremail: user.email,
       isPro: user.isProUser,
     });
