@@ -16,8 +16,8 @@ const mongoose_key = process.env.MONGOOSE_KEY;
 // const sequelize = require("./util/database");
 const authRoutes = require("./routes/auth");
 const expenseRoutes = require("./routes/expense");
-// const checkoutRoutes = require("./routes/checkout");
-// const premiumRoutes = require("./routes/premium");
+const checkoutRoutes = require("./routes/checkout");
+const premiumRoutes = require("./routes/premium");
 
 // const Expenses = require("./models/expenses");
 // const Users = require("./models/users");
@@ -38,8 +38,8 @@ app.use(bodyParser.json({ extended: false }));
 
 app.use("/user", authRoutes);
 app.use("/expenses", expenseRoutes);
-// app.use("/checkout", checkoutRoutes);
-// app.use("/premium", premiumRoutes);
+app.use("/checkout", checkoutRoutes);
+app.use("/premium", premiumRoutes);
 
 // Users.hasMany(Expenses);
 // Expenses.belongsTo(Users);

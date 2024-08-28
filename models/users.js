@@ -1,6 +1,27 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
+const expenseSchema = new Schema({
+  amount: {
+    type: Number,
+    required: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  category: {
+    type: String,
+    required: true,
+  },
+  date: {
+    type: Date,
+    required: true,
+    default: Date.now,
+  },
+});
+
+
 const userSchema = new Schema({
   name: {
     type: String,
@@ -23,6 +44,7 @@ const userSchema = new Schema({
     type: Number,
     default: 0,
   },
+  expenses: [expenseSchema],
 });
 
 

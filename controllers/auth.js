@@ -1,7 +1,8 @@
 const bcrypt = require("bcrypt");
+const mongoose = require('mongoose')
 const User = require("../models/users");
-const ForgotPasswordRequests = require("../models/forgotPasswordRequests");
-const sequelize = require("../util/database");
+const ForgotPasswordRequest = require("../models/forgotPasswordRequests");
+// const sequelize = require("../util/database");
 const {getpasswordpage} = require("../util/forgotpasswordpage");
 
 var jwt = require("jsonwebtoken");
@@ -99,42 +100,21 @@ exports.forgotPassword = async (req, res) => {
   }
 
   try {
-    //check user exist
-    const user = await Users.findOne({ where: { email: userEmail } });
+    //check user exists
+    const user = await User.findOne({ email: userEmail });
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
 
-    const resetReq = await ForgotPasswordRequests.create({
+    //create password reset request
+    const resetReq = new ForgotPasswordRequest({
       id: uuidv4(),
       isActive: true,
-      userId: user.id,
+      userId: user._id,
     });
+    await resetReq.save();
 
-    //#region using nodemailer - test account
-    //   const testAcc = await nodemailer.createTestAccount();
-
-    // const transporter = await nodemailer.createTransport({
-    //   host: "smtp.ethereal.email",
-    //   port: 587,
-    //   secure: false,
-    //   auth: {
-    //     user: 'felipe.cartwright62@ethereal.email',
-    //     pass: 'Tnf3rWGCVC5mzfS4RR'
-    //   },
-    // });
-
-    // const info = await transporter.sendMail({
-    //   from: '"dhan diary" <dhandiary@support.com>',
-    //   to: userEmail,
-    //   subject: "password reset",
-    //   text: "your OTP is 1234",
-    //   html: "<b>your OTP is 1234</b>",
-    // });
-    //#endregion
-
-    //using gmail - real account
-
+    //nodemailer using Gmail
     const transporter = await nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
@@ -144,8 +124,9 @@ exports.forgotPassword = async (req, res) => {
       },
     });
 
+    // mailgen
     let MailGenerator = new Mailgen({
-      theme: "default", //cerberus,salted,neopolitan
+      theme: "default",
       product: {
         name: "DhanDiary Support",
         link: "#",
@@ -154,22 +135,21 @@ exports.forgotPassword = async (req, res) => {
       },
     });
 
-    const resetLink = `http://localhost:3000/user/reset-password/${resetReq.id}`; //dynamic reset link
+    const resetLink = `http://localhost:3000/user/reset-password/${resetReq.id}`; // Dynamic reset link
 
     const response = {
       body: {
         name: user.name,
-        intro: "This is an auto generated Link, do not share it with others.",
+        intro: "This is an auto-generated Link, do not share it with others.",
         action: {
-          instructions: `Click below button to RESET your Password`,
+          instructions: "Click below button to RESET your Password",
           button: {
             color: "#84cc16",
             text: "Reset",
             link: resetLink,
           },
         },
-        outro:
-          "If you did not request a password reset, no further action is required on your part.",
+        outro: "If you did not request a password reset, no further action is required on your part.",
         signature: "Best regards",
       },
     };
@@ -183,7 +163,6 @@ exports.forgotPassword = async (req, res) => {
       html: mail,
     });
 
-    // console.log("Message sent-----------"); //test
     res.json({ info, message: "Reset Link Sent." });
   } catch (error) {
     console.log("email error ===== ", error);
@@ -195,58 +174,74 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPasswordPage = async (req, res) => {
   const { id } = req.params;
 
-  //check forgotpassword req
   try {
-    const resetReq = await ForgotPasswordRequests.findOne({
-      where: { id, isActive: true },
-    });
-    //no req
-    if(!resetReq){
+    // Check if the forgot password request exists and is active
+    const resetReq = await ForgotPasswordRequest.findOne({ id, isActive: true });
+
+    // If no request found or the request is not active
+    if (!resetReq) {
       return res.status(404).send(`
         <html>
-              <body>
-                  <h1>Link Expired</h1>
-              </body>
-          </html> 
-        `);
+          <body>
+            <h1>Link Expired</h1>
+          </body>
+        </html>
+      `);
     }
-  
-    //req active
-    const result = getpasswordpage(id)
+
+    const result = getpasswordpage(id);
     return res.send(result);
-  
+
   } catch (error) {
-    console.log('error---- ',error)
-    return res.status(500).json(error)
+    console.log('error---- ', error);
+    return res.status(500).json({ error: "An error occurred while processing your request." });
   }
 };
 
 //reset password
 exports.resetPassword = async(req,res) => {
-  const {id} = req.params;
+  const { id } = req.params;
   const newPassword = req.body.password;
 
   try {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      const result = await sequelize.transaction(async (t) => {
-      const resetReq = await ForgotPasswordRequests.findByPk(id, { transaction: t });
+    try {
+      // find request
+      const resetReq = await ForgotPasswordRequest.findById(id).session(session);
 
-      const user = await Users.findByPk(resetReq.userId, { transaction: t });
+      if (!resetReq) {
+        throw new Error("Invalid or expired reset request.");
+      }
+
+      // find user
+      const user = await User.findById(resetReq.userId).session(session);
+
+      if (!user) {
+        throw new Error("User not found.");
+      }
 
       user.password = await bcrypt.hash(newPassword, saltRounds);
 
-      await user.save({transaction: t});
-      await resetReq.destroy({transaction: t});
+      // Save user and delete req
+      await user.save({ session });
+      await resetReq.deleteOne({ session });
 
-      return user;
-    });
+      await session.commitTransaction();
+      session.endSession();
 
-    // console.log('redirecting')
-    res.redirect('http://localhost:5173/login');
+      // redirect
+      res.redirect('http://localhost:5173/login');
+      console.log('User password reset for:', user.name);
 
-    console.log('user password reset for : ',result.name);
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   } catch (error) {
-    console.log('error---- ',error);
+    console.log('Error:', error);
     res.redirect('http://localhost:5173/login');
   }
 };

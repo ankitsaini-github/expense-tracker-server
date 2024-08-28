@@ -90,30 +90,13 @@ exports.downloadAllFiles = async(req,res)=>{
 exports.leaderboard = async(req, res, next) => {
   
   try {
-    // const users = await User.findAll({
-    //   attributes: [
-    //     'id',
-    //     'name',
-    //     [sequelize.fn('SUM', sequelize.col('Expenses.amount')), 'totalExpenses']
-    //   ],
-    //   include: [{
-    //     model: Expense,
-    //     attributes: []
-    //   }],
-    //   group: ['id'],
-    //   order: [[sequelize.literal('totalExpenses'), 'DESC']],
-    //   raw: true,
-    // });
     
-    const users = await User.findAll({
-      attributes: ['id', 'name', 'totalExpense'],
-      order: [['totalExpense', 'DESC']]
-    })
-
+    const users = await User.find({}, 'id name totalExpense')
+      .sort({ totalExpense: -1 });
+    
     return res.status(200).send(users);
   } catch (error) {
-    
-    return res.status(500).json({error:'failed to fetch--------'})
+    return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
   }
 };
 
@@ -121,39 +104,26 @@ exports.leaderboard = async(req, res, next) => {
 
 exports.getReport = async(req,res)=>{
   const { date, month } = req.query;
-  const userId = req.user.id;
-  // console.log('uid = ',userId)
-  try {
-    let expenses;
-    if (date) {
-      // console.log('date = ',date)
-      expenses = await Expense.findAll({
-        where: {
-          date,
-          userId,
-        }
-      });
-    } else if (month) {
-      const startDate=moment(month).startOf('month').format('YYYY-MM-DD');
-      const endDate=moment(month).endOf('month').format('YYYY-MM-DD');
-      // console.log('month = ',startDate,endDate)
+  const userId = req.user._id;
 
-      expenses = await Expense.findAll({
-        where: {
-          date: {
-            [Op.between]: [startDate,endDate]
-          },
-          userId,
-        }
-      });
-    } else {
-      // console.log('empty------')
-      expenses = [];
+  try {
+    let expenses = [];
+
+    if (date) {
+      //expenses by date
+      expenses = req.user.expenses.filter(expense => 
+        expense.date.toISOString().split('T')[0] === date);
+    } else if (month) {
+      const startDate = moment(month).startOf('month').toDate();
+      const endDate = moment(month).endOf('month').toDate();
+
+      //expenses by month
+      expenses = req.user.expenses.filter(expense => 
+        expense.date >= startDate && expense.date <= endDate);
     }
-    // console.log('report = ',expenses)
+
     return res.status(200).json(expenses);
   } catch (error) {
-    // console.error(error);
-    res.status(500).json({ error: 'An error occurred while fetching Report.' });
+    res.status(500).json({ error: 'An error occurred while fetching the report.' });
   }
 };

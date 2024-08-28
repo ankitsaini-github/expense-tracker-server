@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const Expense = require("../models/expenses");
+// const Expense = require("../models/expenses");
 const User = require("../models/users");
 
 
@@ -10,27 +10,27 @@ exports.fetchAll = async (req, res) => {
   const skip = (page - 1) * limit;
 
   try {
+    const user = await User.findById(uid);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    let expenses;
     if (req.query.page) {
-      // with pagination
-      const [expenses, count] = await Promise.all([
-        Expense.find({ userId: uid })
-          .skip(parseInt(skip))
-          .limit(parseInt(limit)),
-        Expense.countDocuments({ userId: uid })
-      ]);
+      // Pagination
+      const totalExpenses = user.expenses.length;
+      const totalPages = Math.ceil(totalExpenses / limit);
+      expenses = user.expenses.slice(skip, skip + parseInt(limit));
 
-      const totalPages = Math.ceil(count / limit);
-
-      // console.log('expenses = ',expenses)
       return res.status(200).json({
         expenses,
         totalPages
       });
-
     } else {
-      // without pagination
-      const expenses = await Expense.find({ userId: uid });
-
+      // Without pagination
+      expenses = user.expenses;
+      
       if (!expenses.length) {
         return res.status(404).json({ error: "No expenses found." });
       }
@@ -58,22 +58,26 @@ exports.addExpense = async (req, res) => {
 
     try {
       const date = new Date().toISOString().split('T')[0];
-      
-      // Create a new expense
-      const expense = new Expense({ amount, description, category, date, userId });
-      await expense.save({ session });
 
-      // Find user and update total expense
       const user = await User.findById(userId).session(session);
+
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      const newExpense = { amount, description, category, date };
+      user.expenses.push(newExpense);
       user.totalExpense += parseFloat(amount);
+
       await user.save({ session });
 
       await session.commitTransaction();
       session.endSession();
 
-      res.status(201).send(expense);
+      res.status(201).send(newExpense);
     } catch (err) {
-
       await session.abortTransaction();
       session.endSession();
       throw err;
@@ -90,31 +94,32 @@ exports.deleteExpense = async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const session = await Expense.startSession();
+    const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-      const expense = await Expense.findById(id).session(session); //find
+      const user = await User.findById(userId).session(session);
 
-      if (!expense) {
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ error: "User not found." });
+      }
+
+      const expenseIndex = user.expenses.findIndex(exp => exp._id.toString() === id);
+      if (expenseIndex === -1) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).json({ error: "Expense not found." });
       }
 
-      if (expense.userId.toString() !== userId.toString()) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(403).json({ error: "Unauthorized action." });
-      }
-
-      await expense.deleteOne({ session }); //delete
-
-      const user = await User.findById(userId).session(session);
+      const expense = user.expenses[expenseIndex];
       user.totalExpense -= parseFloat(expense.amount);
-      await user.save({ session }); //save
+      user.expenses.splice(expenseIndex, 1); // Remove the expense
 
-      await session.commitTransaction(); //commit
+      await user.save({ session });
+
+      await session.commitTransaction();
       session.endSession();
 
       res.status(200).json({
@@ -122,7 +127,7 @@ exports.deleteExpense = async (req, res) => {
         deletedExpense: expense,
       });
     } catch (err) {
-      await session.abortTransaction(); //rollback
+      await session.abortTransaction();
       session.endSession();
       throw err;
     }

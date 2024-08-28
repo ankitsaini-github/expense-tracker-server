@@ -1,5 +1,5 @@
 const Razorpay = require("razorpay");
-const Users = require('../models/users');
+const User = require('../models/users');
 
 // require('dotenv').config();
 
@@ -15,11 +15,10 @@ exports.buyPro = async(req, res, next)=>{
       amount: 5100,
       currency: "INR",
     };
-    
+
     const order = await razorpay.orders.create(options);
     
-    res.json({order, key_id: razorpay.key_id, currency:options.currency});
-
+    res.json({ order, key_id: razorpay.key_id, currency: options.currency });
   } catch (error) {
     res.status(500).send(error);
   }
@@ -27,11 +26,12 @@ exports.buyPro = async(req, res, next)=>{
 
 exports.updateStatus = async (req, res, next) => {
   try {
-    const {payment_id, order_id} = req.body;
-    req.user.update({isProUser: true}).then(()=>{
-      return res.status(202).json({success:true, message: 'Transaction successful'})
-    })
+    const { payment_id, order_id } = req.body;
+    req.user.isProUser = true;
+    await req.user.save();
+
+    return res.status(202).json({ success: true, message: 'Transaction successful' });
   } catch (error) {
-    return res.status(500).json({error:'Transaction Failed'})
+    return res.status(500).json({ error: 'Transaction Failed' });
   }
 };
